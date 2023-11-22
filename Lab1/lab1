@@ -1,0 +1,56 @@
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+
+movies = pd.read_table('movies.dat', sep='::', engine='python', header=None, names=['MovieID', 'Title', 'Genres'], encoding='latin1')
+ratings = pd.read_table('ratings.dat', sep='::', engine='python', header=None, names=['UserID', 'MovieID', 'Rating', 'Timestamp'], encoding='latin1')
+users = pd.read_table('users.dat', sep='::', engine='python', header=None, names=['UserID', 'Gender', 'Age', 'Occupation', 'Zip-code'], encoding='latin1')
+
+merged_data = ratings.merge(users, on='UserID', how='inner') 
+data_frame = merged_data.merge(movies, on='MovieID', how='inner') 
+
+def categorize_age(age):
+    if age < 18:
+        return "до 18 лет"
+    elif age <= 24:
+        return "18-24"
+    elif age <= 34:
+        return "25-34"
+    elif age <= 44:
+        return "35-44"
+    elif age <= 49:
+        return "45-49"
+    elif age <= 55:
+        return "50-55"
+    else:
+        return "56+"
+
+data_frame['Age_Group'] = data_frame['Age'].apply(categorize_age)
+
+grouped_data = data_frame.groupby(['Gender', 'Age_Group'])
+
+top_movies_by_gender_age = {}
+
+for group, frame in grouped_data:
+    gender, age_group = group
+    top_movies = frame.sort_values(by='Rating', ascending=False).head(10)[['Title', 'Rating']]
+    if not top_movies.empty:
+        top_movies_by_gender_age[group] = top_movies
+    else:
+        print(f"No movies available for Gender: {gender}, Age Group: {age_group}")
+
+for group, top_movies in top_movies_by_gender_age.items():
+    gender, age_group = group
+    print(f"Gender: {gender}, Age Group: {age_group}")
+    print(top_movies)
+    print("\n")
+
+selected_group = ('M', '45-49')
+selected_data = grouped_data.get_group(selected_group)[['Title', 'Rating']]
+
+plt.figure(figsize=(10, 7))
+sns.histplot(selected_data['Rating'], bins=10, kde=True)
+plt.title(f'Розподіл рейтингів для {selected_group[0]} у віковій групі {selected_group[1]}')
+plt.xlabel('Рейтинг')
+plt.ylabel('Частота')
+plt.show()
